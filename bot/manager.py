@@ -150,7 +150,9 @@ class BotManager:
             for r in responses:
                 self._check_for_owner_commands(r)
 
-                if r.in_reply_to_id not in clue_post_ids:
+                if current_game is None:
+                    logging.info('No current game')
+                elif r.in_reply_to_id not in clue_post_ids:
                     logging.debug(
                         'post_id = %s, clue_post_ids = %s',
                             r.post_id, clue_post_ids)
