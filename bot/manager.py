@@ -27,6 +27,8 @@ logger = logging.getLogger(__name__)
 DEFAULT_CLUE_DELAY_SECONDS = 60*60*2
 DEFAULT_CHECK_DELAY_SECONDS = 60*5
 
+# Number of games before the same image is used again
+HISTORY_SIZE = 20
 
 class BotManager:
     '''Bot for image-based quizes on Mastodon.'''
@@ -38,6 +40,7 @@ class BotManager:
         self.mastodon_client = mastodon_client
         self.owner = owner
         self.questions = []
+        self.question_history = []
 
 
     def load_dataset(self, path):
@@ -72,7 +75,17 @@ class BotManager:
             raise ValueError(msg)
 
         question = random.choice(self.questions)
+        if len(self.questions) > HISTORY_SIZE:
+            while question.filepath in self.question_history:
+                logger.debug('Repeated question: %s', question.filepath)
+                question = random.choice(self.questions)
+
         logger.debug('Selected question: %s', question)
+
+        self.question_history.append(question.filepath)
+        if len(self.question_history) > HISTORY_SIZE:
+            self.question_history.pop(0)
+
         return ImageGame(question)
 
 
