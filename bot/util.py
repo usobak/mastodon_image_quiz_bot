@@ -8,7 +8,7 @@ import time
 logger = logging.getLogger(__name__)
 
 
-def retry(times=10, exceptions=Exception):
+def retry(times=20, exceptions=Exception):
     '''Retries the function it decorates if it raises an exception.'''
 
     def decorator(func):
@@ -24,7 +24,7 @@ def retry(times=10, exceptions=Exception):
                     logger.error(e, exc_info=True)
 
                     attempt += 1
-                    time.sleep(30 * attempt)
+                    time.sleep(60 * attempt)
 
             return func(*args, **kwargs)
         return newfn
