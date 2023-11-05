@@ -20,6 +20,7 @@ from datetime import datetime
 
 from . import strings
 from .image_quiz import ImageGame, load_definition_from_file
+from .state import State
 
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ DEFAULT_CLUE_DELAY_SECONDS = 60*60*2
 DEFAULT_CHECK_DELAY_SECONDS = 60*5
 
 # Number of games before the same image is used again
-HISTORY_SIZE = 20
+HISTORY_SIZE = 50
 
 class BotManager:
     '''Bot for image-based quizes on Mastodon.'''
@@ -37,10 +38,12 @@ class BotManager:
         if mastodon_client is None:
             raise ValueError('Mastodon client required')
 
+        self.questions = []
         self.mastodon_client = mastodon_client
         self.owner = owner
-        self.questions = []
-        self.question_history = []
+
+        self.state = State(HISTORY_SIZE)
+        self.state.loadFromDisk()
 
 
     def load_dataset(self, path):
@@ -76,15 +79,11 @@ class BotManager:
 
         question = random.choice(self.questions)
         if len(self.questions) > HISTORY_SIZE:
-            while question.filepath in self.question_history:
+            while question.filepath in self.state.getQuestions():
                 logger.debug('Repeated question: %s', question.filepath)
                 question = random.choice(self.questions)
 
         logger.debug('Selected question: %s', question)
-
-        self.question_history.append(question.filepath)
-        if len(self.question_history) > HISTORY_SIZE:
-            self.question_history.pop(0)
 
         return ImageGame(question)
 
@@ -104,6 +103,7 @@ class BotManager:
 
 
     def _publish_solution_found(self, current_game, response):
+        self.state.addQuestion(current_game.definition.filepath)
         solution = current_game.get_solution()
         msg = strings.SOLUTION_FOUND.format(solution)
         # TODO use response
@@ -113,6 +113,7 @@ class BotManager:
 
 
     def _publish_finished(self, current_game):
+        self.state.addQuestion(current_game.definition.filepath)
         solution = current_game.get_solution()
         msg = strings.SOLUTION_NOT_FOUND.format(solution)
         return self.mastodon_client.post_with_media(
