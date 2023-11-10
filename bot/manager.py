@@ -6,12 +6,14 @@ Usage:
 
 2) Load one or more folders with images. See Readme.md.
 
-3) Start the bot with the run() method. 
+3) Start the bot with the run() method.
 '''
 
+import enum
 import glob
 import logging
 import os
+import os.path
 import random
 import sys
 import time
@@ -19,38 +21,75 @@ import time
 from datetime import datetime
 
 from . import strings
-from .image_quiz import ImageGame, load_definition_from_file
+from .util import enough_delay
 from .state import State
+from .image_quiz import ImageGame, load_definition_from_file
 
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_CLUE_DELAY_SECONDS = 60*60*2
-DEFAULT_CHECK_DELAY_SECONDS = 60*5
 
 # Number of games before the same image is used again
 HISTORY_SIZE = 50
 
+DEFAULT_CLUE_DELAY_SECONDS = 60*60*2
+DEFAULT_CHECK_DELAY_SECONDS = 60*5
+
+class BotStates(enum.Enum):
+    START = 'START'
+    NEW_ROUND = 'NEW_ROUND'
+    NEW_CLUE = 'NEW_CLUE'
+    WAIT = 'WAIT'
+    CHECK_RESPONSES = 'CHECK_RESPONSES'
+    SOLUTION_FOUND = 'SOLUTION_FOUND'
+    FINISH_ROUND = 'FINISH_ROUND'
+    FINISH_EXECUTION = 'FINISH_EXECUTION'
+
+
 class BotManager:
     '''Bot for image-based quizes on Mastodon.'''
 
-    def __init__(self, mastodon_client, owner):
+    def __init__(
+            self, mastodon_client, owner, datasetPath,
+            history_size=HISTORY_SIZE,
+            clueDelaySeconds=DEFAULT_CLUE_DELAY_SECONDS,
+            checkDelaySeconds=DEFAULT_CHECK_DELAY_SECONDS):
         if mastodon_client is None:
             raise ValueError('Mastodon client required')
 
-        self.questions = []
+        if datasetPath is None:
+            raise ValueError('dataset path required')
+
+        if not os.path.isdir(datasetPath):
+            raise ValueError('dataset path must be a directory')
+
         self.mastodon_client = mastodon_client
         self.owner = owner
+        self.datasetPath = datasetPath
+        self.history_size = history_size
+        self.checkDelaySeconds = checkDelaySeconds
+        self.clueDelaySeconds = clueDelaySeconds
 
-        self.state = State(HISTORY_SIZE)
-        self.state.loadFromDisk()
+        self.currentState = BotStates.START
+        self.currentRound = None
 
 
-    def load_dataset(self, path):
+    def _changeState(self, newState):
+        if newState == self.currentState:
+            return
+        self.currentState = newState
+
+
+    def _onStateStart(self):
+        self.gameState = State(self.history_size)
+        self.gameState.loadFromDisk()
+        self._changeState(BotStates.NEW_ROUND)
+
+
+    def _load_dataset(self, path):
         '''Loads quiz questions from a directory.'''
 
         logger.info('Loading dataset...')
-
         definitions = glob.glob(os.path.join(path, '*.json'))
         logger.debug(
                 'Found %d definition files: %s', len(definitions), definitions)
@@ -68,24 +107,34 @@ class BotManager:
                 sys.exit(-1)
 
         logger.info('%d questions loaded successfully', len(questions))
-        self.questions.extend(questions)
+        return questions
 
 
-    def _new_game(self):
-        if not self.questions:
+    def _pickQuestion(self, questions):
+        return random.choice(questions)
+
+
+    def _new_round(self):
+        candidates = self._load_dataset(self.datasetPath)
+        if not candidates:
             msg = 'Unable to find any question'
             logger.error(msg)
             raise ValueError(msg)
 
-        question = random.choice(self.questions)
-        if len(self.questions) > HISTORY_SIZE:
-            while question.filepath in self.state.getQuestions():
+        question = self._pickQuestion(candidates)
+        if len(candidates) > self.history_size:
+            while question.filepath in self.gameState.getQuestions():
                 logger.debug('Repeated question: %s', question.filepath)
-                question = random.choice(self.questions)
+                question = self._pickQuestion(candidates)
 
         logger.debug('Selected question: %s', question)
-
         return ImageGame(question)
+
+
+    def _onStateNewRound(self):
+        self.currentRound = self._new_round()
+        self.postIds = set()
+        self._changeState(BotStates.NEW_CLUE)
 
 
     def _publish_new_clue(self, current_game):
@@ -102,116 +151,129 @@ class BotManager:
         return self.mastodon_client.post_with_media(msg, clue)
 
 
-    def _publish_solution_found(self, current_game, response):
-        self.state.addQuestion(current_game.definition.filepath)
-        solution = current_game.get_solution()
-        msg = strings.SOLUTION_FOUND.format(solution)
-        # TODO use response
-        return self.mastodon_client.post_with_media(
-                msg, current_game.get_image())
+    def _onStateNewClue(self):
+        postId = self._publish_new_clue(self.currentRound)
+
+        if postId is None:
+            # No more clues for this round
+            self._changeState(BotStates.FINISH_ROUND)
+        else:
+            self.postIds.add(postId)
+            self.lastClueTime = datetime.now()
+            self._changeState(BotStates.WAIT)
 
 
+    def _checkOwnerCommands(self, response):
+        text = response.content
 
-    def _publish_finished(self, current_game):
-        self.state.addQuestion(current_game.definition.filepath)
-        solution = current_game.get_solution()
-        msg = strings.SOLUTION_NOT_FOUND.format(solution)
-        return self.mastodon_client.post_with_media(
-                msg, current_game.get_image())
+        if '\\die' in text:
+            logger.info('Found owner command: DIE')
+            self._changeState(BotStates.FINISH_EXECUTION)
+            return True
 
+        if '\\solution_found' in text:
+            logger.info('Found owner command: SOLUTION_FOUND')
+            self._changeState(BotStates.SOLUTION_FOUND)
+            return True
 
-    def _check_for_owner_commands(self, response):
-        if response.creator != self.owner:
+        if '\\finish' in text:
+            logger.info('Found owner command: FINISH_ROUND')
+            self._changeState(BotStates.FINISH_ROUND)
+            return True
+
+        if '\\next' in text:
+            logger.info('Found owner command: NEW_CLUE')
+            self._changeState(BotStates.NEW_CLUE)
+            return True
+
+        return False
+
+    def _onStateCheckResponses(self):
+        logger.info('Checking for responses...')
+        responses = self.mastodon_client.get_responses()
+        logger.debug('Received %d responses', len(responses))
+        solutionFound = False
+        commandFound = False
+
+        for r in responses:
+            if r.creator == self.owner:
+                commandFound = self._checkOwnerCommands(r)
+                if commandFound:
+                    break
+
+            if r.in_reply_to_id not in self.postIds:
+                logging.debug('post_id = %s, postIds = %s',
+                              r.post_id, self.postIds)
+                logging.info('Response not in current game posts')
+
+            elif self.currentRound.is_valid(r.content):
+                logging.info('Correct response!')
+                # TODO like response
+                solutionFound = True
+            else:
+                logging.info('Invalid response')
+
+        if commandFound:
             return
+        elif solutionFound:
+            self._changeState(BotStates.SOLUTION_FOUND)
+        elif enough_delay(self.clueDelaySeconds, self.lastClueTime):
+            self._changeState(BotStates.NEW_CLUE)
+        else:
+            self._changeState(BotStates.WAIT)
 
-        logger.info('Received message from the owner: %s', response.content)
 
-        if 'DIE' in response.content:
+    def _onStateFinishRound(self):
+        solution = self.currentRound.get_solution()
+        msg = strings.SOLUTION_NOT_FOUND.format(solution)
+        self.mastodon_client.post_with_media(
+                msg, self.currentRound.get_image())
+        self.currentRound.clean()
+        self._changeState(BotStates.NEW_ROUND)
+
+
+    def _onStateSolutionFound(self):
+        solution = self.currentRound.get_solution()
+        msg = strings.SOLUTION_FOUND.format(solution)
+        self.mastodon_client.post_with_media(
+                msg, self.currentRound.get_image())
+        self.currentRound.clean()
+        self._changeState(BotStates.NEW_ROUND)
+
+
+    def run(self):
+        while True:
+            self._runStep()
+
+
+    def _runStep(self):
+        logger.debug('Current state: %s', self.currentState)
+
+        if self.currentState == BotStates.START:
+            self._onStateStart()
+
+        elif self.currentState == BotStates.WAIT:
+            logger.info('Waiting...')
+            time.sleep(self.checkDelaySeconds)
+            self._changeState(BotStates.CHECK_RESPONSES)
+
+        elif self.currentState == BotStates.NEW_ROUND:
+            self._onStateNewRound()
+
+        elif self.currentState == BotStates.NEW_CLUE:
+            self._onStateNewClue()
+
+        elif self.currentState == BotStates.CHECK_RESPONSES:
+            self._onStateCheckResponses()
+
+        elif self.currentState == BotStates.FINISH_ROUND:
+            self._onStateFinishRound()
+
+        elif self.currentState == BotStates.SOLUTION_FOUND:
+            self._onStateSolutionFound()
+
+        elif self.currentState == BotStates.FINISH_EXECUTION:
             logger.info('I have received the command to shut down myself')
             sys.exit(-1)
 
 
-    def run(self, clue_delay_seconds=DEFAULT_CLUE_DELAY_SECONDS,
-            check_delay_seconds=DEFAULT_CHECK_DELAY_SECONDS):
-        '''Executes the bot main loop.
-
-        Arguments:
-            clue_delay_seconds: delay before publishing a new clue
-            check_delay_seconds: delay before checking for new responses
-        '''
-
-        logger.info(
-            'Running with clue_delay_seconds=%d check_delay_seconds=%d',
-            clue_delay_seconds, check_delay_seconds)
-
-        last_clue = datetime.min
-        current_game = None
-        clue_post_ids = set()
-        while True:
-
-            if current_game is None:
-                # No game is currently on. Create a new one
-                logger.info('Creating new game...')
-                last_clue = datetime.min
-                current_game = self._new_game()
-                logger.info(current_game)
-                clue_post_ids = set()
-
-            # Check for responses and validate them
-            logger.info('Checking for responses...')
-            responses = self.mastodon_client.get_responses()
-            logger.debug('Received %d responses', len(responses))
-            for r in responses:
-                self._check_for_owner_commands(r)
-
-                if current_game is None:
-                    logging.info('No current game')
-                elif r.in_reply_to_id not in clue_post_ids:
-                    logging.debug(
-                        'post_id = %s, clue_post_ids = %s',
-                            r.post_id, clue_post_ids)
-                    logging.info('Response not in current game posts')
-                elif current_game.is_valid(r.content):
-                    logging.info('Correct response!')
-                    # Correct response!
-                    self._publish_solution_found(current_game, r)
-                    current_game.clean()
-                    current_game = None
-                else:
-                    logging.info('Invalid response')
-
-            # Publish a new clue?
-            if (current_game is not None and
-                _enough_delay(clue_delay_seconds, last_clue)):
-                logger.info('Publishing new clue...')
-                post_id = self._publish_new_clue(current_game)
-                if post_id is not None:
-                    clue_post_ids.add(post_id)
-                else:
-                    logger.info('No more clues. Finishing current game...')
-                    self._publish_finished(current_game)
-                    current_game.clean()
-                    current_game = None
-
-                last_clue = datetime.now()
-
-            # Wait a bit before checking again
-            logger.info('Waiting...')
-            time.sleep(check_delay_seconds)
-
-
-def _enough_delay(delay_seconds, start, end=None):
-    '''Checks if enough time has passed since start.
-
-    Arguments:
-        delay_seconds:
-        start:
-        end:
-
-    Returns:
-        True or False
-    '''
-
-    if end is None:
-        end = datetime.now()
-    return (end - start).total_seconds() > delay_seconds

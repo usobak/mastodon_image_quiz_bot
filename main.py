@@ -96,15 +96,14 @@ def main():
         del os.environ[TOKEN_ENVIRON_VAR]
         del token
 
-    bot = BotManager(mastodon_client, args.mastodon_owner)
-
-    bot.load_dataset(args.dataset)
-
+    bot = BotManager(
+            mastodon_client, args.mastodon_owner, args.dataset,
+            clueDelaySeconds=args.clue_delay_seconds,
+            checkDelaySeconds=args.check_delay_seconds)
 
     logger.info('Running game...')
     try:
-        bot.run(clue_delay_seconds=args.clue_delay_seconds,
-                check_delay_seconds=args.check_delay_seconds)
+        bot.run()
     except Exception as e:
         logging.error('UNHANDLED EXCEPTION')
         logging.error(e, exc_info=True)

@@ -76,6 +76,11 @@ Log messages will be written to `bot.log` and showed on then terminal.
 If the bot is launched with the argument `--mastodon_owner`, the messages
 received by the bot from that account will be treated as commands.
 
-For now only the command `DIE` is supported. If the bot receives a message or
-reply from the owner account that contains the string `DIE` (in uppercase) it
-will shut itself down.
+Commands:
+
+- `\die` The bot will shutdown itself
+- `\solution_found` Publishes a message that the solution has been found and
+starts the next round
+- `\finish` Publishes a messages with the solution of the current round and
+starts the next
+- \next Publishes the next clue for the current round

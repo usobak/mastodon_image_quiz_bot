@@ -17,15 +17,19 @@ logger = logging.getLogger(__name__)
 class FakeMastodonWrapper:
     '''Fake wrapper for testing. Simulates calling Mastodon.'''
 
+    def __init__(self):
+        self.lastId = 1
+
     def post_with_media(self, msg, filepath):
         '''Simulates the post of an image. Returns random post id'''
 
-        if random.random() < 0.1:  # Fail 10% of the time
-            logger.info('Throwing fake error')
-            raise MastodonServiceUnavailableError('Fake error!')
+        #if random.random() < 0.1:  # Fail 10% of the time
+        #    logger.info('Throwing fake error')
+        #    raise MastodonServiceUnavailableError('Fake error!')
         logger.info('Posting message "%s" filepath "%s"', msg, filepath)
         logger.info('Returning random postId')
-        return int(1000000*random.random())
+        self.lastId = int(1000000*random.random())
+        return self.lastId
 
 
     def get_responses(self):
@@ -33,8 +37,8 @@ class FakeMastodonWrapper:
 
         logger.info('Returning fake response')
         return [
-            Response(post_id=1,  in_reply_to_id=123, content='response 1'),
-            Response(post_id=2,  in_reply_to_id=123, content='response 2')
+            Response(post_id=1,  in_reply_to_id=self.lastId, content='response 1'),
+            Response(post_id=2,  in_reply_to_id=self.lastId, content='stray')
         ]
 
 
