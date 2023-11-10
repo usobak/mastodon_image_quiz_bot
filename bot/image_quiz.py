@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import random
 
 from .image_generation import generate_images
 
@@ -12,23 +13,26 @@ logger = logging.getLogger(__name__)
 class ImageData:
     '''Information about an image for the game.'''
 
-    def __init__(self, title=None, filepath=None, valid_responses=None):
+    def __init__(self, title=None, filepaths=None, valid_responses=None):
         '''Stores information about an image for the game.
 
         Arguments:
             - title: Full title of the game
-            - filepath: path to the screenshot file
+            - filepaths: paths to the screenshot file
             - valid_resposes: iterable of valid responses for the quiz
 
         Example:
             ImageData(
                 'Metroid Prime',
-                'metroid_prime.png',
+                ['metroid_prime.png'],
                 {'metroid prime', 'mp'})
         '''
 
         self.title = title
-        self.filepath = filepath
+        self.filepaths = filepaths
+
+        # Picks one image at random
+        self.filepath = random.choice(filepaths)
 
         if valid_responses is None:
             self.valid_responses = set()
@@ -64,18 +68,18 @@ def _validate_fields_exist(fields, dictionary):
 
 
 def load_definition_from_file(filepath):
-    '''Reads filepath and creates a ImageDAta object.'''
+    '''Reads filepath and creates a ImageData object.'''
 
     with open(filepath) as fin:
         json_content = json.load(fin)
 
-    _validate_fields_exist(['title', 'filepath', 'valid_responses'], json_content)
+    _validate_fields_exist(['title', 'filepaths', 'valid_responses'], json_content)
 
     base_path = os.path.dirname(filepath)
 
     return ImageData(
         json_content['title'],
-        os.path.join(base_path, json_content['filepath']),
+        [os.path.join(base_path, fp) for fp in json_content['filepaths']],
         json_content['valid_responses'],
     )
 

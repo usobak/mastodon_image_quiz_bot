@@ -1,6 +1,6 @@
 {
     "title": "Stray",
-    "filepath": "stray.jpg",
+    "filepaths": ["stray.jpg"],
     "valid_responses": [
         "stray"
     ]

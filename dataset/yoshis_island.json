@@ -1,6 +1,6 @@
 {
     "title": "Super Mario World 2: Yoshi's Island",
-    "filepath": "yoshis_island.jpg",
+    "filepaths": ["yoshis_island.jpg"],
     "valid_responses": [
         "super mario world 2",
         "mario world 2",
