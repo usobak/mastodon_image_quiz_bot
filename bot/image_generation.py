@@ -21,12 +21,29 @@ ROWS = 3
 COLS = 4
 COLOR = (0, 0, 0, 128)
 
+EXPECTED_WIDTH = 600
+
+
+def scale_image(image, expected_width=EXPECTED_WIDTH):
+    '''Scales until its width is expected_width.'''
+
+    width, height = image.size
+
+    factor = expected_width / width
+
+    width, height = int(width * factor), int(height * factor)
+    logger.info(f'Scaling the image by a factor of {factor}')
+    logger.info(f'New image size: {width} x {height}')
+
+    return image.resize((width, height))
+
 
 def generate_images(key, output_path=OUTPUT_PATH):
     '''Generates n images based on the starting. Returns the list of images.'''
 
     base_image_path = key
     base_image = Image.open(base_image_path)
+    base_image = scale_image(base_image)
     width, height = base_image.size
 
     chunks = compute_chunks(height, width, ROWS, COLS)
