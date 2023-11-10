@@ -23,22 +23,21 @@ class FakeMastodonWrapper:
     def post_with_media(self, msg, filepath):
         '''Simulates the post of an image. Returns random post id'''
 
-        #if random.random() < 0.1:  # Fail 10% of the time
+        # if random.random() < 0.1:  # Fail 10% of the time
         #    logger.info('Throwing fake error')
         #    raise MastodonServiceUnavailableError('Fake error!')
         logger.info('Posting message "%s" filepath "%s"', msg, filepath)
         logger.info('Returning random postId')
-        self.lastId = int(1000000*random.random())
+        self.lastId = int(1000000 * random.random())
         return self.lastId
-
 
     def get_responses(self):
         '''Simulates that some responses have been received.'''
 
         logger.info('Returning fake response')
         return [
-            Response(post_id=1,  in_reply_to_id=self.lastId, content='response 1'),
-            Response(post_id=2,  in_reply_to_id=self.lastId, content='stray')
+            Response(post_id=1, in_reply_to_id=self.lastId, content='response 1'),
+            Response(post_id=2, in_reply_to_id=self.lastId, content='stray'),
         ]
 
 
@@ -49,10 +48,7 @@ class MastodonWrapper:
     def __init__(self, api_url, token, visibility):
         self.visibility = visibility
 
-        self.mastodon = Mastodon(
-            access_token=token,
-            api_base_url=api_url)
-
+        self.mastodon = Mastodon(access_token=token, api_base_url=api_url)
 
     @retry(times=10)
     def post_with_media(self, msg, filepath):
@@ -63,11 +59,11 @@ class MastodonWrapper:
         logger.info('Uploaded media with id %s', media_id)
 
         post_result = self.mastodon.status_post(
-                msg, media_ids=[media_id], visibility=self.visibility)
+            msg, media_ids=[media_id], visibility=self.visibility
+        )
         post_id = post_result['id']
         logger.info('Published post with id %s', post_id)
         return post_id
-
 
     @retry(times=10)
     def get_responses(self):
@@ -89,8 +85,7 @@ class MastodonWrapper:
 class Response:
     '''Encapsulates a response to the quiz.'''
 
-    def __init__(self, post_id=None, in_reply_to_id=None, content=None,
-                 creator=None):
+    def __init__(self, post_id=None, in_reply_to_id=None, content=None, creator=None):
         self.post_id = post_id
         self.in_reply_to_id = in_reply_to_id
         self.content = content

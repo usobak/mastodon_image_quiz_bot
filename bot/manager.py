@@ -32,8 +32,9 @@ logger = logging.getLogger(__name__)
 # Number of games before the same image is used again
 HISTORY_SIZE = 50
 
-DEFAULT_CLUE_DELAY_SECONDS = 60*60*2
-DEFAULT_CHECK_DELAY_SECONDS = 60*5
+DEFAULT_CLUE_DELAY_SECONDS = 60 * 60 * 2
+DEFAULT_CHECK_DELAY_SECONDS = 60 * 5
+
 
 class BotStates(enum.Enum):
     START = 'START'
@@ -50,10 +51,14 @@ class BotManager:
     '''Bot for image-based quizes on Mastodon.'''
 
     def __init__(
-            self, mastodon_client, owner, datasetPath,
-            history_size=HISTORY_SIZE,
-            clueDelaySeconds=DEFAULT_CLUE_DELAY_SECONDS,
-            checkDelaySeconds=DEFAULT_CHECK_DELAY_SECONDS):
+        self,
+        mastodon_client,
+        owner,
+        datasetPath,
+        history_size=HISTORY_SIZE,
+        clueDelaySeconds=DEFAULT_CLUE_DELAY_SECONDS,
+        checkDelaySeconds=DEFAULT_CHECK_DELAY_SECONDS,
+    ):
         if mastodon_client is None:
             raise ValueError('Mastodon client required')
 
@@ -73,26 +78,22 @@ class BotManager:
         self.currentState = BotStates.START
         self.currentRound = None
 
-
     def _changeState(self, newState):
         if newState == self.currentState:
             return
         self.currentState = newState
-
 
     def _onStateStart(self):
         self.gameState = State(self.history_size)
         self.gameState.loadFromDisk()
         self._changeState(BotStates.NEW_ROUND)
 
-
     def _load_dataset(self, path):
         '''Loads quiz questions from a directory.'''
 
         logger.info('Loading dataset...')
         definitions = glob.glob(os.path.join(path, '*.json'))
-        logger.debug(
-                'Found %d definition files: %s', len(definitions), definitions)
+        logger.debug('Found %d definition files: %s', len(definitions), definitions)
 
         questions = []
         for d in definitions:
@@ -109,10 +110,8 @@ class BotManager:
         logger.info('%d questions loaded successfully', len(questions))
         return questions
 
-
     def _pickQuestion(self, questions):
         return random.choice(questions)
-
 
     def _new_round(self):
         candidates = self._load_dataset(self.datasetPath)
@@ -130,12 +129,10 @@ class BotManager:
         logger.debug('Selected question: %s', question)
         return ImageGame(question)
 
-
     def _onStateNewRound(self):
         self.currentRound = self._new_round()
         self.postIds = set()
         self._changeState(BotStates.NEW_CLUE)
-
 
     def _publish_new_clue(self, current_game):
         clue = current_game.next_clue()
@@ -145,11 +142,9 @@ class BotManager:
 
         msg = strings.NEW_CLUE.format(current_game.clue_idx, num_clues)
         if current_game.clue_idx == num_clues:
-            msg = strings.LAST_CLUE.format(
-                    current_game.clue_idx, num_clues)
+            msg = strings.LAST_CLUE.format(current_game.clue_idx, num_clues)
 
         return self.mastodon_client.post_with_media(msg, clue)
-
 
     def _onStateNewClue(self):
         postId = self._publish_new_clue(self.currentRound)
@@ -161,7 +156,6 @@ class BotManager:
             self.postIds.add(postId)
             self.lastClueTime = datetime.now()
             self._changeState(BotStates.WAIT)
-
 
     def _checkOwnerCommands(self, response):
         text = response.content
@@ -202,8 +196,7 @@ class BotManager:
                     break
 
             if r.in_reply_to_id not in self.postIds:
-                logging.debug('post_id = %s, postIds = %s',
-                              r.post_id, self.postIds)
+                logging.debug('post_id = %s, postIds = %s', r.post_id, self.postIds)
                 logging.info('Response not in current game posts')
 
             elif self.currentRound.is_valid(r.content):
@@ -222,29 +215,23 @@ class BotManager:
         else:
             self._changeState(BotStates.WAIT)
 
-
     def _onStateFinishRound(self):
         solution = self.currentRound.get_solution()
         msg = strings.SOLUTION_NOT_FOUND.format(solution)
-        self.mastodon_client.post_with_media(
-                msg, self.currentRound.get_image())
+        self.mastodon_client.post_with_media(msg, self.currentRound.get_image())
         self.currentRound.clean()
         self._changeState(BotStates.NEW_ROUND)
-
 
     def _onStateSolutionFound(self):
         solution = self.currentRound.get_solution()
         msg = strings.SOLUTION_FOUND.format(solution)
-        self.mastodon_client.post_with_media(
-                msg, self.currentRound.get_image())
+        self.mastodon_client.post_with_media(msg, self.currentRound.get_image())
         self.currentRound.clean()
         self._changeState(BotStates.NEW_ROUND)
-
 
     def run(self):
         while True:
             self._runStep()
-
 
     def _runStep(self):
         logger.debug('Current state: %s', self.currentState)
@@ -275,5 +262,3 @@ class BotManager:
         elif self.currentState == BotStates.FINISH_EXECUTION:
             logger.info('I have received the command to shut down myself')
             sys.exit(-1)
-
-

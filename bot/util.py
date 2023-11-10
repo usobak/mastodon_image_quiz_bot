@@ -17,19 +17,19 @@ def retry(times=20, exceptions=Exception):
         def newfn(*args, **kwargs):
             attempt = 1
             while attempt <= times:
-
                 try:
                     return func(*args, **kwargs)
                 except exceptions as e:
-                    logger.error(
-                        'Run %d: Exception executing %s', attempt, func)
+                    logger.error('Run %d: Exception executing %s', attempt, func)
                     logger.error(e, exc_info=True)
 
                     attempt += 1
                     time.sleep(60 * attempt)
 
             return func(*args, **kwargs)
+
         return newfn
+
     return decorator
 
 

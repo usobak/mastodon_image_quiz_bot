@@ -46,8 +46,8 @@ def compute_chunks(height, width, rows, cols):
     chunk_height = height // rows
     chunk_width = width // cols
 
-    horizontal_steps = [i*chunk_width for i in range(cols)]
-    vertical_steps = [i*chunk_height  for i in range(rows)]
+    horizontal_steps = [i * chunk_width for i in range(cols)]
+    vertical_steps = [i * chunk_height for i in range(rows)]
 
     chunks = []
     for v in vertical_steps:

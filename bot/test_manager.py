@@ -7,13 +7,12 @@ from unittest.mock import patch, Mock
 from . import manager
 from . import state
 
-class BotManagerTest(unittest.TestCase):
 
+class BotManagerTest(unittest.TestCase):
     def test_constructor(self):
         '''The constructor works.'''
 
         manager.BotManager(Mock(), 'test_owner', '/tmp')
-
 
     def test_constructor(self):
         '''Constructor argument validation.'''
@@ -24,7 +23,6 @@ class BotManagerTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             manager.BotManager(Mock(), 'test_owner', None)
 
-
     def test_changeState(self):
         '''The method changeState works.'''
 
@@ -34,7 +32,6 @@ class BotManagerTest(unittest.TestCase):
 
         self.assertEqual(expected_state, m.currentState)
 
-   
     def test_onStateStart(self):
         '''State start handler works.'''
 
@@ -47,11 +44,9 @@ class BotManagerTest(unittest.TestCase):
         self.assertEqual(expected_state, m.currentState)
         self.assertTrue(mock_state.called)
 
-
     def test_onStateNewRound_JSON(self):
         '''Loads all JSON files.'''
         self.assertTrue(False)
-
 
     def test_onStateNewRound_NoQuestions(self):
         '''Can't load any questions.'''
@@ -61,7 +56,6 @@ class BotManagerTest(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             m._onStateNewRound()
-        
 
     def test_onStateNewRound(self):
         '''State new round works fine.'''
@@ -81,8 +75,7 @@ class BotManagerTest(unittest.TestCase):
         m._onStateNewRound()
 
         # Check mock calls
-        mock_image.assert_called_with(q1) 
-
+        mock_image.assert_called_with(q1)
 
     def test_onStateNewRound_NoRepeat(self):
         '''Does not repeat a question if it is in the history.'''
@@ -109,4 +102,3 @@ class BotManagerTest(unittest.TestCase):
 
         # Check mock calls
         mock_image.assert_called_with(q2)
-

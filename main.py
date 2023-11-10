@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 # Default arguments
 DEFAULT_DATASET_PATH = './dataset/'
 DEFAULT_OUTPUT_PATH = './output/'
-DEFAULT_CLUE_DELAY_SECONDS = 60*60*2
-DEFAULT_CHECK_DELAY_SECONDS = 60*5
+DEFAULT_CLUE_DELAY_SECONDS = 60 * 60 * 2
+DEFAULT_CHECK_DELAY_SECONDS = 60 * 5
 DEFAULT_MASTODON_VISIBILITY = 'public'
 
 TOKEN_ENVIRON_VAR = 'MASTODON_TOKEN'
@@ -46,27 +46,24 @@ def main():
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s:%(levelname)s:%(name)s:%(message)s',
-        handlers=[
-            logging.FileHandler("bot.log"),
-            logging.StreamHandler()
-        ])
+        handlers=[logging.FileHandler("bot.log"), logging.StreamHandler()],
+    )
 
     parser = argparse.ArgumentParser(
-        prog="Quiz Bot",
-        description="Mastodon bot for image-based quizs")
+        prog="Quiz Bot", description="Mastodon bot for image-based quizs"
+    )
     parser.add_argument('-d', '--dataset', default=DEFAULT_DATASET_PATH)
     parser.add_argument('-o', '--output', default=DEFAULT_OUTPUT_PATH)
     parser.add_argument('--no_dry_run', action='store_false')
-    parser.add_argument('--clue_delay_seconds',
-                        default=DEFAULT_CLUE_DELAY_SECONDS,
-                        type=int)
-    parser.add_argument('--check_delay_seconds',
-                        default=DEFAULT_CHECK_DELAY_SECONDS,
-                        type=int)
+    parser.add_argument(
+        '--clue_delay_seconds', default=DEFAULT_CLUE_DELAY_SECONDS, type=int
+    )
+    parser.add_argument(
+        '--check_delay_seconds', default=DEFAULT_CHECK_DELAY_SECONDS, type=int
+    )
     parser.add_argument('--mastodon_endpoint')
     parser.add_argument('--mastodon_owner')
-    parser.add_argument('--mastodon_visibility',
-                        default=DEFAULT_MASTODON_VISIBILITY)
+    parser.add_argument('--mastodon_visibility', default=DEFAULT_MASTODON_VISIBILITY)
     args = parser.parse_args()
 
     logger.info('Starting the bot...')
@@ -79,10 +76,8 @@ def main():
     logger.info('mastodon owner = %s', args.mastodon_owner)
     logger.info('mastodon visibility = %s', args.mastodon_visibility)
 
-
     logger.info('Setting up dependencies and data...')
     random.seed()
-
 
     if args.no_dry_run:
         logger.info("Dry run mode. Won't publish anything!")
@@ -90,16 +85,20 @@ def main():
     else:
         token = get_auth_token()
         mastodon_client = MastodonWrapper(
-                api_url=args.mastodon_endpoint,
-                token=token,
-                visibility=args.mastodon_visibility)
+            api_url=args.mastodon_endpoint,
+            token=token,
+            visibility=args.mastodon_visibility,
+        )
         del os.environ[TOKEN_ENVIRON_VAR]
         del token
 
     bot = BotManager(
-            mastodon_client, args.mastodon_owner, args.dataset,
-            clueDelaySeconds=args.clue_delay_seconds,
-            checkDelaySeconds=args.check_delay_seconds)
+        mastodon_client,
+        args.mastodon_owner,
+        args.dataset,
+        clueDelaySeconds=args.clue_delay_seconds,
+        checkDelaySeconds=args.check_delay_seconds,
+    )
 
     logger.info('Running game...')
     try:

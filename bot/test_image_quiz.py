@@ -20,15 +20,11 @@ class ImageDataTest(unittest.TestCase):
         expected_valid_responses = {'metroid prime', 'mp'}
         valid_responses = {'Metroid Prime', 'MP '}
 
-        definition = ImageData(
-                expected_title,
-                expected_filepath,
-                valid_responses)
+        definition = ImageData(expected_title, expected_filepath, valid_responses)
 
         self.assertEqual(definition.title, expected_title)
         self.assertEqual(definition.filepath, expected_filepath)
         self.assertEqual(definition.valid_responses, expected_valid_responses)
-
 
     def test_repr(self):
         '''Repr works fine.'''
@@ -38,8 +34,9 @@ class ImageDataTest(unittest.TestCase):
 
         self.assertEqual(definition.title, expected_definition.title)
         self.assertEqual(definition.filepath, expected_definition.filepath)
-        self.assertEqual(definition.valid_responses,
-                         expected_definition.valid_responses)
+        self.assertEqual(
+            definition.valid_responses, expected_definition.valid_responses
+        )
 
 
 class LoadDefinitionFromFileTest(unittest.TestCase):
@@ -51,20 +48,20 @@ class LoadDefinitionFromFileTest(unittest.TestCase):
         expected_definition = {
             'title': 'Chrono Trigger',
             'filepath': 'chrono_trigger',
-            'valid_responses': ['chrono trigger']
+            'valid_responses': ['chrono trigger'],
         }
         expected_filepath = 'something.json'
         json_file = json.dumps(expected_definition)
 
-        with patch('builtins.open', mock_open(read_data=json_file)) \
-                as mock_file:
+        with patch('builtins.open', mock_open(read_data=json_file)) as mock_file:
             definition = load_definition_from_file(expected_filepath)
             mock_file.assert_called_with(expected_filepath)
 
         self.assertEqual(definition.title, expected_definition['title'])
         self.assertEqual(definition.filepath, expected_definition['filepath'])
-        self.assertEqual(definition.valid_responses,
-                         set(expected_definition['valid_responses']))
+        self.assertEqual(
+            definition.valid_responses, set(expected_definition['valid_responses'])
+        )
 
 
 class ImageGameTest(unittest.TestCase):
@@ -79,7 +76,6 @@ class ImageGameTest(unittest.TestCase):
 
         mock.assert_called_with('path')
 
-
     def test_is_valid(self):
         '''Checks responses correctly.'''
 
@@ -88,7 +84,6 @@ class ImageGameTest(unittest.TestCase):
         self.assertTrue(game.is_valid('r1'))
         self.assertTrue(game.is_valid('r2'))
         self.assertFalse(game.is_valid('other'))
-
 
     def test_next_clue(self):
         '''Next clue works fine.'''
@@ -100,7 +95,6 @@ class ImageGameTest(unittest.TestCase):
         self.assertEqual(game.next_clue(), 'c')
         self.assertEqual(game.next_clue(), 'path')
 
-
     def test_next_clue_no_more_clues(self):
         '''Next clue returns None if no more clues exist.'''
 
@@ -110,14 +104,12 @@ class ImageGameTest(unittest.TestCase):
         game.next_clue()  # Get the original image
         self.assertIsNone(game.next_clue())
 
-
     def test_get_solution(self):
         '''Returns the game solution.'''
 
         game = create_game()
 
         self.assertEqual(game.get_solution(), 'title')
-
 
     def test_get_image(self):
         '''Returns the final image.'''
@@ -126,7 +118,6 @@ class ImageGameTest(unittest.TestCase):
 
         self.assertEqual(game.get_image(), 'path')
 
-
     @patch('os.remove')
     def test_clean(self, mock_remove):
         '''Cleans the generated images.'''
@@ -134,8 +125,7 @@ class ImageGameTest(unittest.TestCase):
         game = create_game()
         game.clean()
 
-        mock_remove.assert_has_calls(
-            [call('a'), call('b'),call('c')])
+        mock_remove.assert_has_calls([call('a'), call('b'), call('c')])
 
 
 def create_game():
