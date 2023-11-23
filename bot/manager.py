@@ -136,6 +136,7 @@ class BotManager:
                 question = self._pickQuestion(candidates)
 
         logger.debug('Selected question: %s', question)
+        self.gameState.addQuestion(question.filepath)
         return ImageGame(question)
 
     def _onStateNewRound(self):
