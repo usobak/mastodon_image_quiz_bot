@@ -86,9 +86,13 @@ class BotManager:
     def _onStateStart(self):
         self.gameState = State(self.history_size)
         self.gameState.loadFromDisk()
+
+        # Uncomment to check all images in the dataset before starting
+        #self._load_dataset(self.datasetPath, check=True)
+
         self._changeState(BotStates.NEW_ROUND)
 
-    def _load_dataset(self, path):
+    def _load_dataset(self, path, check=False):
         '''Loads quiz questions from a directory.'''
 
         logger.info('Loading dataset...')
@@ -102,6 +106,11 @@ class BotManager:
                 q = load_definition_from_file(d)
                 logger.debug(q)
                 questions.append(q)
+
+                if check:
+                    logger.info('Checking %s', d)
+                    img = ImageGame(q)
+                    img.clean()
             except Exception as e:
                 logger.error('Unable to parse %s', d)
                 logger.error(e, exc_info=True)

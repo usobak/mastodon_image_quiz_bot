@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 OUTPUT_PATH = './output/'
 ROWS = 3
 COLS = 4
-COLOR = (0, 0, 0, 128)
+COLOR = 'black'
 
 EXPECTED_WIDTH = 600
 
