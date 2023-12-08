@@ -88,7 +88,7 @@ class BotManager:
         self.gameState.loadFromDisk()
 
         # Uncomment to check all images in the dataset before starting
-        #self._load_dataset(self.datasetPath, check=True)
+        self._load_dataset(self.datasetPath, check=True)
 
         self._changeState(BotStates.NEW_ROUND)
 
@@ -103,14 +103,14 @@ class BotManager:
         for d in definitions:
             try:
                 logger.debug('Parsing %s...', d)
-                q = load_definition_from_file(d)
-                logger.debug(q)
-                questions.append(q)
+                qs = load_definition_from_file(d)
+                questions.extend(qs)
 
                 if check:
-                    logger.info('Checking %s', d)
-                    img = ImageGame(q)
-                    img.clean()
+                    for q in qs:
+                        logger.info('Checking %s %s', d, q)
+                        img = ImageGame(q)
+                        img.clean()
             except Exception as e:
                 logger.error('Unable to parse %s', d)
                 logger.error(e, exc_info=True)

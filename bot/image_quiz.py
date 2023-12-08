@@ -13,26 +13,23 @@ logger = logging.getLogger(__name__)
 class ImageData:
     '''Information about an image for the game.'''
 
-    def __init__(self, title=None, filepaths=None, valid_responses=None):
+    def __init__(self, title=None, filepath=None, valid_responses=None):
         '''Stores information about an image for the game.
 
         Arguments:
             - title: Full title of the game
-            - filepaths: paths to the screenshot file
+            - filepath: path to the screenshot file
             - valid_resposes: iterable of valid responses for the quiz
 
         Example:
             ImageData(
                 'Metroid Prime',
-                ['metroid_prime.png'],
+                'metroid_prime.png',
                 {'metroid prime', 'mp'})
         '''
 
         self.title = title
-        self.filepaths = filepaths
-
-        # Picks one image at random
-        self.filepath = random.choice(filepaths)
+        self.filepath = filepath
 
         if valid_responses is None:
             self.valid_responses = set()
@@ -77,11 +74,12 @@ def load_definition_from_file(filepath):
 
     base_path = os.path.dirname(filepath)
 
-    return ImageData(
+    filepaths = [os.path.join(base_path, fp) for fp in json_content['filepaths']]
+    return [ImageData(
         json_content['title'],
-        [os.path.join(base_path, fp) for fp in json_content['filepaths']],
+        fp,
         json_content['valid_responses'],
-    )
+    ) for fp in filepaths]
 
 
 class ImageGame:
