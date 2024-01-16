@@ -75,11 +75,14 @@ def load_definition_from_file(filepath):
     base_path = os.path.dirname(filepath)
 
     filepaths = [os.path.join(base_path, fp) for fp in json_content['filepaths']]
-    return [ImageData(
-        json_content['title'],
-        fp,
-        json_content['valid_responses'],
-    ) for fp in filepaths]
+    return [
+        ImageData(
+            json_content['title'],
+            fp,
+            json_content['valid_responses'],
+        )
+        for fp in filepaths
+    ]
 
 
 class ImageGame:
